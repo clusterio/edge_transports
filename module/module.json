@@ -1,0 +1,5 @@
+{
+	"name": "edge_transports",
+	"version": "0.0.1",
+	"load": ["edge_logic.lua"]
+}
