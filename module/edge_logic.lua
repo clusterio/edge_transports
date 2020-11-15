@@ -275,6 +275,8 @@ local function do_inputs()
 						serialize.serialize_item_stack(slot, stack)
 						item_stacks[#item_stacks + 1] = stack
 						slot.clear()
+					elseif inventory.is_empty() then
+						break
 					end
 				end
 
