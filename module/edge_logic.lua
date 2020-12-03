@@ -216,6 +216,19 @@ local function remove_belt_box(offset, edge, surface)
 	end
 end
 
+local function create_belt_link(id, edge, offset, entity)
+	local is_input = entity.direction == edge.direction
+	spawn_belt_box(offset, edge, is_input, entity.surface)
+	clusterio_api.send_json("edge_transports:edge_link_update", {
+		type = "create_belt_link",
+		edge_id = id,
+		data = {
+			offset = offset,
+			is_input = not is_input,
+		},
+	})
+end
+
 local function on_built(entity)
 	if entity.type == "transport-belt" then
 		local pos = {entity.position.x, entity.position.y}
@@ -223,21 +236,23 @@ local function on_built(entity)
 			if game.surfaces[edge.surface] == entity.surface then
 				local offset = belt_check(pos, entity.direction, edge)
 				if offset then
-					local is_input = entity.direction == edge.direction
-					spawn_belt_box(offset, edge, is_input, entity.surface)
-					clusterio_api.send_json("edge_transports:edge_link_update", {
-						type = "create_belt_link",
-						edge_id = id,
-						data = {
-							offset = offset,
-							is_input = not is_input,
-						},
-					})
+					create_belt_link(id, edge, offset, entity)
 					break
 				end
 			end
 		end
 	end
+end
+
+local function remove_belt_link(id, edge, offset, entity)
+	remove_belt_box(offset, edge, entity.surface)
+	clusterio_api.send_json("edge_transports:edge_link_update", {
+		type = "remove_belt_link",
+		edge_id = id,
+		data = {
+			offset = offset,
+		}
+	})
 end
 
 local function on_removed(entity)
@@ -247,14 +262,7 @@ local function on_removed(entity)
 			if game.surfaces[edge.surface] == entity.surface then
 				local offset = belt_check(pos, entity.direction, edge)
 				if offset then
-					remove_belt_box(offset, edge, entity.surface)
-					clusterio_api.send_json("edge_transports:edge_link_update", {
-						type = "remove_belt_link",
-						edge_id = id,
-						data = {
-							offset = offset,
-						}
-					})
+					remove_belt_link(id, edge, offset, entity)
 					break
 				end
 			end
