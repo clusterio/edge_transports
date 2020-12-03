@@ -197,6 +197,8 @@ local function remove_belt_box(offset, edge, surface)
 			link.chest.destroy()
 		end
 
+		edge.linked_belts[offset] = nil
+
 	else
 		local chest_pos = edge_pos_to_world({edge_x, -2.5}, edge)
 		local chest = surface.find_entity("steel-chest", chest_pos)
