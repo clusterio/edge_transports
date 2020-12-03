@@ -21,8 +21,6 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 	}
 
 	async handleEdgeLinkUpdate(update) {
-		console.log("udpate: ", update);
-
 		let edge = this.edges.get(update.edge_id);
 		if (!edge) {
 			console.error(`edge_transports: Got update for unknown edge ${data.edge_id}`);
@@ -35,16 +33,12 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 			edge_id: edge.target_edge,
 			data: update.data,
 		});
-
-		console.log("got back ", result);
 	}
 
 	async edgeLinkUpdateRequestHandler(message) {
 		let { type, edge_id, data } = message.data;
-		console.log("edgeLinkUpdateHandler", message);
 		let json = libLuaTools.escapeString(JSON.stringify({ type, edge_id, data }));
 		let result = await this.instance.server.sendRcon(`/sc edge_transports.edge_link_update("${json}")`);
-		console.log("cmd result ", result);
 	}
 
 	async updateInternal(internal, prev) {
