@@ -38,7 +38,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 	async edgeLinkUpdateRequestHandler(message) {
 		let { type, edge_id, data } = message.data;
 		let json = libLuaTools.escapeString(JSON.stringify({ type, edge_id, data }));
-		let result = await this.instance.server.sendRcon(`/sc edge_transports.edge_link_update("${json}")`);
+		let result = await this.sendRcon(`/sc edge_transports.edge_link_update("${json}")`);
 	}
 
 	async updateInternal(internal, prev) {
@@ -47,7 +47,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 
 		if (!util.isDeepStrictEqual(this.internal["edges"], prev["edges"])) {
 			let json = libLuaTools.escapeString(JSON.stringify(this.internal["edges"]));
-			await this.instance.server.sendRcon(`/sc edge_transports.set_edges("${json}")`, true);
+			await this.sendRcon(`/sc edge_transports.set_edges("${json}")`, true);
 		}
 	}
 
