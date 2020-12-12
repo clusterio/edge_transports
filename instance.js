@@ -14,8 +14,8 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 		await this.updateInternal(internal, internal);
 
 		this.instance.server.on("ipc-edge_transports:edge_link_update", data => {
-			this.handleEdgeLinkUpdate(data).catch(err => console.error(
-				"Error handling data in edge_transports:", err
+			this.handleEdgeLinkUpdate(data).catch(err => this.logger.error(
+				`Error handling edge_link_update:\n${err.stack}`
 			));
 		});
 	}
@@ -23,7 +23,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 	async handleEdgeLinkUpdate(update) {
 		let edge = this.edges.get(update.edge_id);
 		if (!edge) {
-			console.error(`edge_transports: Got update for unknown edge ${data.edge_id}`);
+			this.logger.error(`Got update for unknown edge ${data.edge_id}`);
 			return;
 		}
 
