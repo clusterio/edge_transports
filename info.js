@@ -47,11 +47,11 @@ module.exports = {
 	InstanceConfigGroup,
 
 	messages: {
-		edgeLinkUpdate: new libLink.Request({
+		edgeLinkUpdate: new libLink.Event({
 			type: "edge_transports:edge_link_update",
 			links: instanceToInstance,
 			forwardTo: "instance",
-			requestProperties: {
+			eventProperties: {
 				"edge_id": { type: "integer" },
 				"type": { type: "string" },
 				"data": { type: "object" },

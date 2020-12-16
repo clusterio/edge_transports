@@ -45,7 +45,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 		});
 	}
 
-	async edgeLinkUpdateRequestHandler(message) {
+	async edgeLinkUpdateEventHandler(message) {
 		let { type, edge_id, data } = message.data;
 		let json = libLuaTools.escapeString(JSON.stringify({ type, edge_id, data }));
 		let result = await this.sendRcon(`/sc edge_transports.edge_link_update("${json}")`, true);
