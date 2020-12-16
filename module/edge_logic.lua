@@ -356,8 +356,10 @@ end
 edge_transports = {}
 function edge_transports.set_edges(json)
 	local new_edges = game.json_to_table(json)
+	local new_edge_ids = {}
 	local edges = global.edge_transports.edges
 	for _, edge in ipairs(new_edges) do
+		new_edge_ids[edge.id] = true
 		if not edges[edge.id] then
 			edges[edge.id] = {
 				origin = edge.origin,
@@ -380,6 +382,12 @@ function edge_transports.set_edges(json)
 				edges[edge.id].direction = edge.direction
 				edges[edge.id].length = edge.length
 			end
+		end
+	end
+
+	for id, edge in pairs(edges) do
+		if not new_edge_ids[id] then
+			edges[id] = nil
 		end
 	end
 
@@ -475,6 +483,12 @@ edge_logic.events = {
 			global.edge_transports.current_edge_id = id
 		end
 		local edge = global.edge_transports.edges[id]
+
+		-- edge may have been removed while iterating over it
+		if edge == nil then
+			global.edge_transports.current_edge_id = nil
+			return
+		end
 
 		poll_links(id, edge, ticks_left)
 
