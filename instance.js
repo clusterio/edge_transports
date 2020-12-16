@@ -12,7 +12,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 			throw new Error("edge_transports plugin requires save patching");
 		}
 
-		this.edgeData = new Map();
+		this.edges = new Map();
 
 		let internal = this.instance.config.get("edge_transports.internal");
 		await this.updateInternal(internal, internal);
@@ -33,14 +33,14 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 	async handleEdgeLinkUpdate(update) {
 		let edge = this.edges.get(update.edge_id);
 		if (!edge) {
-			this.logger.error(`Got update for unknown edge ${data.edge_id}`);
+			this.logger.error(`Got update for unknown edge ${update.edge_id}`);
 			return;
 		}
 
 		let result = await this.info.messages.edgeLinkUpdate.send(this.instance, {
-			instance_id: edge.target_instance,
+			instance_id: edge.config.target_instance,
 			type: update.type,
-			edge_id: edge.target_edge,
+			edge_id: edge.config.target_edge,
 			data: update.data,
 		});
 	}
@@ -53,16 +53,22 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 
 	async updateInternal(internal, prev) {
 		this.internal = internal;
-		this.edges = new Map(this.internal["edges"].map(e => [e.id, e]));
-		for (let edge of this.internal["edges"]) {
-			if (!this.edgeData.has(edge.id)) {
-				this.edgeData.set(edge.id, {
+
+		let newEdges = new Set();
+		for (let edgeConfig of this.internal["edges"]) {
+			newEdges.add(edgeConfig.id);
+			let edge = this.edges.get(edgeConfig.id);
+			if (edge) {
+				edge.config = edgeConfig;
+			} else {
+				edge = {
+					config: edgeConfig,
 					pendingMessage: {
 						beltTransfers: new Map(),
 					},
 					messageTransfer: new RateLimiter({
 						maxRate: this.instance.config.get("edge_transports.transfer_message_rate"),
-						action: () => this.edgeTransferSendMessage(edge.id).catch(err => this.logger.error(
+						action: () => this.edgeTransferSendMessage(edgeConfig.id).catch(err => this.logger.error(
 							`Error sending transfer message:\n${err.stack}`
 						)),
 					}),
@@ -71,11 +77,20 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 					},
 					commandTransfer: new RateLimiter({
 						maxRate: this.instance.config.get("edge_transports.transfer_command_rate"),
-						action: () => this.edgeTransferSendCommand(edge.id).catch(err => this.logger.error(
+						action: () => this.edgeTransferSendCommand(edgeConfig.id).catch(err => this.logger.error(
 							`Error sending transfer command:\n${err.stack}`
 						)),
 					}),
-				});
+				};
+				this.edges.set(edgeConfig.id, edge);
+			}
+		}
+
+		for (let [id, edge] of this.edges) {
+			if (!newEdges.has(id)) {
+				edge.messageTransfer.cancel();
+				edge.commandTransfer.cancel();
+				this.edges.delete(id);
 			}
 		}
 
@@ -97,8 +112,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 			return; // XXX LATER PROBLEM
 		}
 
-		let edgeData = this.edgeData.get(data.edge_id);
-		let pendingBeltTransfers = edgeData.pendingMessage.beltTransfers;
+		let pendingBeltTransfers = edge.pendingMessage.beltTransfers;
 		for (let beltTransfer of data.belt_transfers || []) {
 			let pending = pendingBeltTransfers.get(beltTransfer.offset);
 			if (!pending) {
@@ -108,7 +122,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 			pending.itemStacks.push(...beltTransfer.item_stacks);
 		}
 
-		edgeData.messageTransfer.activate();
+		edge.messageTransfer.activate();
 	}
 
 	async edgeTransferSendMessage(edgeId) {
@@ -118,9 +132,8 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 			return; // XXX LATER PROBLEM
 		}
 
-		let edgeData = this.edgeData.get(edgeId);
-		let pendingBeltTransfers = edgeData.pendingMessage.beltTransfers;
-		edgeData.pendingMessage.beltTransfers = new Map();
+		let pendingBeltTransfers = edge.pendingMessage.beltTransfers;
+		edge.pendingMessage.beltTransfers = new Map();
 
 		let beltTransfers = [];
 		for (let [offset, beltTransfer] of pendingBeltTransfers) {
@@ -132,8 +145,8 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 
 		try {
 			await this.info.messages.edgeTransfer.send(this.instance, {
-				instance_id: edge.target_instance,
-				edge_id: edge.target_edge,
+				instance_id: edge.config.target_instance,
+				edge_id: edge.config.target_edge,
 				belt_transfers: beltTransfers,
 			});
 
@@ -152,8 +165,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 			return; // XXX later problem
 		}
 
-		let edgeData = this.edgeData.get(edge_id);
-		let pendingBeltTransfers = edgeData.pendingCommand.beltTransfers;
+		let pendingBeltTransfers = edge.pendingCommand.beltTransfers;
 		for (let beltTransfer of belt_transfers) {
 			let pending = pendingBeltTransfers.get(beltTransfer.offset);
 			if (!pending) {
@@ -163,7 +175,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 			pending.itemStacks.push(...beltTransfer.item_stacks);
 		}
 
-		edgeData.commandTransfer.activate();
+		edge.commandTransfer.activate();
 	}
 
 	async edgeTransferSendCommand(edgeId) {
@@ -173,9 +185,8 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 			return; // XXX later problem,
 		}
 
-		let edgeData = this.edgeData.get(edgeId);
-		let pendingBeltTransfers = edgeData.pendingCommand.beltTransfers;
-		edgeData.pendingCommand.beltTransfers = new Map();
+		let pendingBeltTransfers = edge.pendingCommand.beltTransfers;
+		edge.pendingCommand.beltTransfers = new Map();
 
 		let beltTransfers = [];
 		for (let [offset, beltTransfer] of pendingBeltTransfers) {
@@ -210,28 +221,28 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 			await this.updateTicksPerEdge(value);
 
 		} else if (field === "transfer_message_rate") {
-			for (let edgeData of this.edgeData.values()) {
-				edgeData.messageTransfer.maxRate = value;
+			for (let edge of this.edges.values()) {
+				edge.messageTransfer.maxRate = value;
 			}
 		} else if (field === "transfer_command_rate") {
-			for (let edgeData of this.edgeData.values()) {
-				edgeData.commandTransfer.maxRate = value;
+			for (let edge of this.edges.values()) {
+				edge.commandTransfer.maxRate = value;
 			}
 		}
 	}
 
 	async onStop() {
 		// TODO pause edge transfers and notify target instances to stop sending
-		for (let edgeData of this.edgeData.values()) {
-			edgeData.messageTransfer.cancel();
-			edgeData.commandTransfer.cancel();
+		for (let edge of this.edges.values()) {
+			edge.messageTransfer.cancel();
+			edge.commandTransfer.cancel();
 		}
 	}
 
 	onExit() {
-		for (let edgeData of this.edgeData.values()) {
-			edgeData.messageTransfer.cancel();
-			edgeData.commandTransfer.cancel();
+		for (let edge of this.edges.values()) {
+			edge.messageTransfer.cancel();
+			edge.commandTransfer.cancel();
 		}
 	}
 }
