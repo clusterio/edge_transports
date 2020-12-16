@@ -1,6 +1,9 @@
 local clusterio_api = require("modules/clusterio/api")
 local serialize = require("modules/clusterio/serialize")
 
+local itertools = require("itertools")
+
+
 local function vec2_sadd(a, s)
 	return {a[1] + s, a[2] + s}
 end
@@ -272,46 +275,34 @@ local function on_removed(entity)
 	end
 end
 
-local function do_inputs()
-	for id, edge in pairs(global.edge_transports.edges) do
-		for offset, link in pairs(edge.linked_belts or {}) do
-			if link.is_input and link.chest and link.chest.valid then
-				local inventory = link.chest.get_inventory(defines.inventory.chest)
-				local item_stacks = {}
-				for index=1, #inventory do
-					local slot = inventory[index]
-					if slot.valid_for_read then
-						local stack = {}
-						serialize.serialize_item_stack(slot, stack)
-						item_stacks[#item_stacks + 1] = stack
-						slot.clear()
-					elseif inventory.is_empty() then
-						break
-					end
-				end
-
-				if #item_stacks > 0 then
-					clusterio_api.send_json("edge_transports:edge_link_update", {
-						type = "belt_input",
-						edge_id = id,
-						data = {
-							offset = offset,
-							item_stacks = item_stacks,
-						}
-					})
-				end
-			end
-		end
-	end
-end
-
-local function do_output(offset, edge, item_stacks)
-	local link = (edge.linked_belts or {})[offset]
-	if not link then
-		log("FATAL: recevied items for non-existant link at offset " .. offset)
+local function poll_belt_link(offset, link)
+	if not link.is_input or not link.chest or not link.chest.valid then
 		return
 	end
 
+	local inventory = link.chest.get_inventory(defines.inventory.chest)
+	local item_stacks = {}
+	for index = 1, #inventory do
+		local slot = inventory[index]
+		if slot.valid_for_read then
+			local stack = {}
+			serialize.serialize_item_stack(slot, stack)
+			item_stacks[#item_stacks + 1] = stack
+			slot.clear()
+		elseif inventory.is_empty() then
+			break
+		end
+	end
+
+	if #item_stacks > 0 then
+		return {
+			offset = offset,
+			item_stacks = item_stacks
+		}
+	end
+end
+
+local function push_belt_link(link, item_stacks)
 	if not link.chest or not link.chest.valid then
 		log("FATAL: recevied items but target chest does not exist at off " .. offset)
 		return
@@ -331,6 +322,33 @@ local function do_output(offset, edge, item_stacks)
 
 	if #item_stacks ~= 0 then
 		log("FATAL: item stacks left over!")
+	end
+end
+
+local function poll_links(id, edge, ticks_left)
+	if not edge.linked_belts then
+		return
+	end
+
+	if not edge.linked_belts_state then
+		edge.linked_belts_state = {}
+	end
+
+	local belt_transfers = {}
+	for offset, link in itertools.partial_pairs(
+		edge.linked_belts, edge.linked_belts_state, ticks_left
+	) do
+		local update = poll_belt_link(offset, link)
+		if update then
+			belt_transfers[#belt_transfers + 1] = update
+		end
+	end
+
+	if #belt_transfers > 0 then
+		clusterio_api.send_json("edge_transports:transfer", {
+			edge_id = id,
+			belt_transfers = belt_transfers,
+		})
 	end
 end
 
@@ -372,7 +390,6 @@ end
 
 function edge_transports.edge_link_update(json)
 	local update = game.json_to_table(json)
-	--XXX log(serpent.line(update))
 
 	local data = update.data
 	local edge = global.edge_transports.edges[update.edge_id]
@@ -400,6 +417,26 @@ function edge_transports.edge_link_update(json)
 	end
 end
 
+function edge_transports.transfer(json)
+	local data = game.json_to_table(json)
+	local edge = global.edge_transports.edges[data.edge_id]
+	if not edge then
+		rcon.print("invalid edge")
+		return
+	end
+	if data.belt_transfers then
+		for _, belt_transfer in ipairs(data.belt_transfers) do
+			local link = (edge.linked_belts or {})[belt_transfer.offset]
+			if not link then
+				log("FATAL: recevied items for non-existant link at offset " .. belt_transfer.offset)
+				return
+			end
+
+			push_belt_link(link, belt_transfer.item_stacks)
+		end
+	end
+end
+
 function edge_transports.toggle_debug()
 	global.edge_transports.debug_draw = not global.edge_transports.debug_draw
 	debug_draw()
@@ -421,6 +458,29 @@ edge_logic.events = {
 		if not global.edge_transports.debug_shapes then
 			global.edge_transports.debug_shapes = {}
 		end
+
+		if not global.edge_transports.ticks_per_edge then
+			global.edge_transports.ticks_per_edge = 15
+		end
+	end,
+
+	[defines.events.on_tick] = function(event)
+		local ticks_left = -game.tick % global.edge_transports.ticks_per_edge
+		local id = global.edge_transports.current_edge_id
+		if id == nil then
+			id = next(global.edge_transports.edges)
+			if id == nil then
+				return -- no edges
+			end
+			global.edge_transports.current_edge_id = id
+		end
+		local edge = global.edge_transports.edges[id]
+
+		poll_links(id, edge, ticks_left)
+
+		if ticks_left == 0 then
+			global.edge_transports.current_edge_id = next(global.edge_transports.edges, id)
+		end
 	end,
 
 	[defines.events.on_built_entity] = function(event) on_built(event.created_entity) end,
@@ -432,10 +492,6 @@ edge_logic.events = {
 	[defines.events.on_robot_mined_entity] = function(event) on_removed(event.entity) end,
 	[defines.events.on_entity_died] = function(event) on_removed(event.entity) end,
 	[defines.events.script_raised_destroy] = function(event) on_removed(event.entity) end,
-}
-
-edge_logic.on_nth_tick = {
-	[60] = function(event) do_inputs() end,
 }
 
 return edge_logic

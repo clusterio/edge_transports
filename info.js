@@ -10,17 +10,28 @@ InstanceConfigGroup.define({
 	type: "object",
 	initial_value: { edges: [] },
 });
+InstanceConfigGroup.define({
+	name: "ticks_per_edge",
+	title: "Ticks Per Edge",
+	description: "Number of game ticks to use processing each edge.",
+	type: "number",
+	initial_value: 15,
+});
+InstanceConfigGroup.define({
+	name: "transfer_message_rate",
+	title: "Transfer Message Rate",
+	description: "Rate in messages per second to send edge transfers to other instances.",
+	type: "number",
+	initial_value: 50,
+});
+InstanceConfigGroup.define({
+	name: "transfer_command_rate",
+	title: "Transfer Command Rate",
+	description: "Rate in commands per seccond to send edge transfer data into this instance.",
+	type: "number",
+	initial_value: 1000 / 34, // Factorio protocol update rate
+});
 InstanceConfigGroup.finalize();
-
-// let example_edge = {
-//     "id": 1,
-//     "origin": [10, -10],
-//     "surface": 1,
-//     "direction": 1,
-//     "length": 20,
-//     "target_instance": 324,
-//     "target_id": 1,
-// };
 
 let instanceToInstance = ["instance-slave", "slave-master", "master-slave", "slave-instance"];
 
@@ -44,6 +55,29 @@ module.exports = {
 				"edge_id": { type: "integer" },
 				"type": { type: "string" },
 				"data": { type: "object" },
+			},
+		}),
+		edgeTransfer: new libLink.Request({
+			type: "edge_transports:edge_transfer",
+			links: instanceToInstance,
+			forwardTo: "instance",
+			requestProperties: {
+				"edge_id": { type: "integer" },
+				"belt_transfers": {
+					type: "array",
+					items: {
+						type: "object",
+						additionalProperties: false,
+						required: ["offset", "item_stacks"],
+						properties: {
+							"offset": { type: "number" },
+							"item_stacks": {
+								type: "array",
+								items: { type: "object" },
+							},
+						},
+					},
+				},
 			},
 		}),
 	},
