@@ -4,6 +4,7 @@ const libConfig = require("@clusterio/lib/config");
 
 
 class InstanceConfigGroup extends libConfig.PluginConfigGroup { }
+InstanceConfigGroup.defaultAccess = ["master", "slave", "control"];
 InstanceConfigGroup.groupName = "edge_transports";
 InstanceConfigGroup.define({
 	name: "internal",

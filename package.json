@@ -23,10 +23,11 @@
   },
   "homepage": "https://github.com/clusterio/edge_transports#readme",
   "peerDependencies": {
-    "@clusterio/lib": "^2.0.0-alpha.0"
+    "@clusterio/lib": "^2.0.0-alpha.5"
   },
   "devDependencies": {
     "@babel/preset-react": "^7.12.5",
+    "@clusterio/web_ui": "^2.0.0-alpha.5",
     "babel-loader": "^8.2.0",
     "eslint": "^7.13.0",
     "webpack": "^5.4.0",

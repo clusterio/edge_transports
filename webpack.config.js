@@ -10,7 +10,7 @@ module.exports = (env = {}) => merge(common(env), {
 	entry: "./web/index.jsx",
 	output: {
 		filename: "bundle.js",
-		path: path.resolve(__dirname, "static"),
+		path: path.resolve(__dirname, "dist", "web"),
 	},
 	plugins: [
 		new webpack.container.ModuleFederationPlugin({
@@ -19,9 +19,11 @@ module.exports = (env = {}) => merge(common(env), {
 			filename: "remoteEntry.js",
 			exposes: {
 				"./info": "./info.js",
+				"./package.json": "./package.json",
 			},
 			shared: {
-				"@clusterio/lib": { import: false },
+				"@clusterio/lib/config": { import: false },
+				"@clusterio/lib/link": { import: false },
 				"@clusterio/web_ui": { import: false },
 				"ajv": { import: false },
 				"antd": { import: false },
