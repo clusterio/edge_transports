@@ -64,7 +64,7 @@ local function debug_draw()
 
 		debug_shapes[#debug_shapes + 1] = rendering.draw_text {
 			color ={ r = 1, g = 1, b = 1 },
-			text = id,
+			text = id .. " " .. (edge.active and "active" or "inactive"),
 			target = vec2_add(edge.origin, {0.4, -0.8}),
 			surface = edge.surface,
 		}
@@ -238,7 +238,7 @@ local function on_built(entity)
 	if entity.type == "transport-belt" then
 		local pos = {entity.position.x, entity.position.y}
 		for id, edge in pairs(global.edge_transports.edges) do
-			if game.surfaces[edge.surface] == entity.surface then
+			if edge.active and game.surfaces[edge.surface] == entity.surface then
 				local offset = belt_check(pos, entity.direction, edge)
 				if offset then
 					create_belt_link(id, edge, offset, entity)
@@ -264,7 +264,7 @@ local function on_removed(entity)
 	if entity.type == "transport-belt" then
 		local pos = {entity.position.x, entity.position.y}
 		for id, edge in pairs(global.edge_transports.edges) do
-			if game.surfaces[edge.surface] == entity.surface then
+			if edge.active and game.surfaces[edge.surface] == entity.surface then
 				local offset = belt_check(pos, entity.direction, edge)
 				if offset then
 					remove_belt_link(id, edge, offset, entity)
@@ -366,6 +366,7 @@ function edge_transports.set_edges(json)
 				surface = edge.surface,
 				direction = edge.direction,
 				length = edge.length,
+				active = false,
 			}
 
 		else
@@ -381,6 +382,7 @@ function edge_transports.set_edges(json)
 				edges[edge.id].surface = edge.surface
 				edges[edge.id].direction = edge.direction
 				edges[edge.id].length = edge.length
+				edges[edge.id].active = false
 			end
 		end
 	end
@@ -389,6 +391,22 @@ function edge_transports.set_edges(json)
 		if not new_edge_ids[id] then
 			edges[id] = nil
 		end
+	end
+
+	if global.edge_transports.debug_draw then
+		debug_draw()
+	end
+end
+
+function edge_transports.set_active_edges(json)
+	local active_edges = game.json_to_table(json)
+	local active_edges_map = {}
+	for _, edge_id in ipairs(active_edges) do
+		active_edges_map[edge_id] = true
+	end
+
+	for edge_id, edge in pairs(global.edge_transports.edges) do
+		edge.active = active_edges_map[edge_id] == true
 	end
 
 	if global.edge_transports.debug_draw then
@@ -416,9 +434,6 @@ function edge_transports.edge_link_update(json)
 
 	elseif update.type == "remove_belt_link" then
 		remove_belt_box(data.offset, edge, surface)
-
-	elseif update.type == "belt_input" then
-		do_output(data.offset, edge, data.item_stacks)
 
 	else
 		log("Unknown link update: " .. serpent.line(update.type))
@@ -463,6 +478,10 @@ edge_logic.events = {
 			global.edge_transports.edges = {}
 		end
 
+		for _, edge in pairs(global.edge_transports.edges) do
+			edge.active = false
+		end
+
 		if not global.edge_transports.debug_shapes then
 			global.edge_transports.debug_shapes = {}
 		end
@@ -490,7 +509,9 @@ edge_logic.events = {
 			return
 		end
 
-		poll_links(id, edge, ticks_left)
+		if edge.active then
+			poll_links(id, edge, ticks_left)
+		end
 
 		if ticks_left == 0 then
 			global.edge_transports.current_edge_id = next(global.edge_transports.edges, id)

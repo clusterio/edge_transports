@@ -30,10 +30,24 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 		});
 	}
 
+	async setActiveEdgesRequestHandler(message) {
+		let json = libLuaTools.escapeString(JSON.stringify(message.data.active_edges));
+		this.logger.info(`setActiveEdges ${json}`);
+		await this.sendRcon(`/sc edge_transports.set_active_edges("${json}")`, true);
+	}
+
+	onMasterConnectionEvent(event) {
+		if (event === "drop" || event === "close") {
+			this.sendRcon('/sc edge_transports.set_active_edges("[]")').catch(
+				err => this.logger(`Error deactivating edges:\n${err.stack}`)
+			);
+		}
+	}
+
 	async handleEdgeLinkUpdate(update) {
 		let edge = this.edges.get(update.edge_id);
 		if (!edge) {
-			this.logger.error(`Got update for unknown edge ${update.edge_id}`);
+			this.logger.warn(`Got update for unknown edge ${update.edge_id}`);
 			return;
 		}
 
@@ -97,6 +111,11 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 		if (!util.isDeepStrictEqual(this.internal["edges"], prev["edges"])) {
 			let json = libLuaTools.escapeString(JSON.stringify(this.internal["edges"]));
 			await this.sendRcon(`/sc edge_transports.set_edges("${json}")`, true);
+			if (this.instance.status === "running" && this.slave.connector.connected) {
+				this.info.messages.activateEdgesAfterInternalUpdate.send(
+					this.instance, { instance_id: this.instance.id }
+				);
+			}
 		}
 	}
 
@@ -232,7 +251,9 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 	}
 
 	async onStop() {
-		// TODO pause edge transfers and notify target instances to stop sending
+		await this.info.messages.ensureEdgesDeactivated.send(this.instance, { instance_id: this.instance.id });
+		await this.sendRcon('/sc edge_transports.set_active_edges("[]")')
+
 		for (let edge of this.edges.values()) {
 			edge.messageTransfer.cancel();
 			edge.commandTransfer.cancel();
@@ -240,6 +261,10 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 	}
 
 	onExit() {
+		if (!this.edges) {
+			return;
+		}
+
 		for (let edge of this.edges.values()) {
 			edge.messageTransfer.cancel();
 			edge.commandTransfer.cancel();

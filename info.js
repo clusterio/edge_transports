@@ -48,6 +48,33 @@ module.exports = {
 	InstanceConfigGroup,
 
 	messages: {
+		activateEdgesAfterInternalUpdate: new libLink.Event({
+			type: "edge_transports:activate_edges_after_internal_update",
+			links: ["instance-slave", "slave-master"],
+			forwardTo: "master",
+			eventProperties: {
+				"instance_id": { type: "integer" },
+			},
+		}),
+		ensureEdgesDeactivated: new libLink.Request({
+			type: "edge_transports:ensure_edges_deactivated",
+			links: ["instance-slave", "slave-master"],
+			forwardTo: "master",
+			requestProperties: {
+				"instance_id": { type: "integer" },
+			},
+		}),
+		setActiveEdges: new libLink.Request({
+			type: "edge_transports:set_active_edges",
+			links: ["master-slave", "slave-instance"],
+			forwardTo: "instance",
+			requestProperties: {
+				"active_edges": {
+					type: "array",
+					items: { type: "integer" },
+				},
+			},
+		}),
 		edgeLinkUpdate: new libLink.Event({
 			type: "edge_transports:edge_link_update",
 			links: instanceToInstance,
