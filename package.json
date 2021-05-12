@@ -1,5 +1,5 @@
 {
-  "name": "@clusterio/edge_transports",
+  "name": "@clusterio/plugin-edge_transports",
   "version": "0.0.1",
   "description": "Clusterio plugin implementing edge transports between servers",
   "main": "index.js",
@@ -36,5 +36,8 @@
   },
   "dependencies": {
     "null-loader": "^4.0.1"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
