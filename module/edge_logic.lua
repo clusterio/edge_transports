@@ -3,6 +3,18 @@ local serialize = require("modules/clusterio/serialize")
 
 local itertools = require("itertools")
 
+local is_transport_belt = {
+	["transport-belt"] = true,
+	["fast-transport-belt"] = true,
+	["express-transport-belt"] = true,
+}
+
+local belt_type_to_loader_type = {
+	["transport-belt"] = "loader",
+	["fast-transport-belt"] = "fast-loader",
+	["express-transport-belt"] = "express-loader",
+}
+
 
 local function vec2_sadd(a, s)
 	return {a[1] + s, a[2] + s}
@@ -127,14 +139,15 @@ local function belt_check(pos, direction, edge)
 	return edge_pos_to_offset(edge_pos, edge)
 end
 
-local function spawn_belt_box(offset, edge, is_input, surface)
+local function spawn_belt_box(offset, edge, is_input, belt_type, surface)
 	local edge_x = offset_to_edge_x(offset, edge)
 
 	local loader_pos = edge_pos_to_world({edge_x, -1}, edge)
+	local loader_type = belt_type_to_loader_type[belt_type]
 	local loader
-	if surface.entity_prototype_collides("loader", loader_pos, false, edge.direction) then
+	if surface.entity_prototype_collides(loader_type, loader_pos, false, edge.direction) then
 		-- Is the loader already there?
-		loader = surface.find_entity("loader", loader_pos)
+		loader = surface.find_entity(loader_type, loader_pos)
 		if not loader then
 			return false
 		end
@@ -152,7 +165,7 @@ local function spawn_belt_box(offset, edge, is_input, surface)
 
 	if not loader then
 		loader = surface.create_entity {
-			name = "loader",
+			name = loader_type,
 			position = loader_pos,
 			direction = edge.direction,
 		}
@@ -217,27 +230,30 @@ local function remove_belt_box(offset, edge, surface)
 	end
 
 	local loader_pos = edge_pos_to_world({edge_x, -1}, edge)
-	local loader = surface.find_entity("loader", loader_pos)
-	if loader then
-		loader.destroy()
+	for _, loader_type in pairs(belt_type_to_loader_type) do
+		local loader = surface.find_entity(loader_type, loader_pos)
+		if loader then
+			loader.destroy()
+		end
 	end
 end
 
 local function create_belt_link(id, edge, offset, entity)
 	local is_input = entity.direction == edge.direction
-	spawn_belt_box(offset, edge, is_input, entity.surface)
+	spawn_belt_box(offset, edge, is_input, entity.name, entity.surface)
 	clusterio_api.send_json("edge_transports:edge_link_update", {
 		type = "create_belt_link",
 		edge_id = id,
 		data = {
 			offset = offset,
 			is_input = not is_input,
+			belt_type = entity.name,
 		},
 	})
 end
 
 local function on_built(entity)
-	if entity.type == "transport-belt" then
+	if is_transport_belt[entity.name] then
 		local pos = {entity.position.x, entity.position.y}
 		for id, edge in pairs(global.edge_transports.edges) do
 			if edge.active and game.surfaces[edge.surface] == entity.surface then
@@ -263,7 +279,7 @@ local function remove_belt_link(id, edge, offset, entity)
 end
 
 local function on_removed(entity)
-	if entity.type == "transport-belt" then
+	if is_transport_belt[entity.name] then
 		local pos = {entity.position.x, entity.position.y}
 		for id, edge in pairs(global.edge_transports.edges) do
 			if edge.active and game.surfaces[edge.surface] == entity.surface then
@@ -521,7 +537,7 @@ function edge_transports.edge_link_update(json)
 
 
 	if update.type == "create_belt_link" then
-		spawn_belt_box(data.offset, edge, data.is_input, surface)
+		spawn_belt_box(data.offset, edge, data.is_input, data.belt_type, surface)
 
 	elseif update.type == "remove_belt_link" then
 		remove_belt_box(data.offset, edge, surface)
