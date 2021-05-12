@@ -6,6 +6,25 @@ const libLuaTools = require("@clusterio/lib/lua_tools");
 const RateLimiter = require("@clusterio/lib/RateLimiter");
 
 
+function mergeBeltTransfers(pendingBeltTransfers, beltTransfers) {
+	for (let beltTransfer of beltTransfers) {
+		let pending = pendingBeltTransfers.get(beltTransfer.offset);
+		if (!pending) {
+			pending = {};
+			pendingBeltTransfers.set(beltTransfer.offset, pending);
+		}
+		if (beltTransfer.item_stacks) {
+			if (!pending.item_stacks) {
+				pending.item_stacks = [];
+			}
+			pending.item_stacks.push(...beltTransfer.item_stacks);
+		}
+		if (Object.prototype.hasOwnProperty.call(beltTransfer, "set_flow")) {
+			pending.set_flow = beltTransfer.set_flow;
+		}
+	}
+}
+
 class InstancePlugin extends libPlugin.BaseInstancePlugin {
 	async init() {
 		if (!this.instance.config.get("factorio.enable_save_patching")) {
@@ -131,16 +150,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 			return; // XXX LATER PROBLEM
 		}
 
-		let pendingBeltTransfers = edge.pendingMessage.beltTransfers;
-		for (let beltTransfer of data.belt_transfers || []) {
-			let pending = pendingBeltTransfers.get(beltTransfer.offset);
-			if (!pending) {
-				pending = { itemStacks: [] };
-				pendingBeltTransfers.set(beltTransfer.offset, pending);
-			}
-			pending.itemStacks.push(...beltTransfer.item_stacks);
-		}
-
+		mergeBeltTransfers(edge.pendingMessage.beltTransfers, data.belt_transfers || []);
 		edge.messageTransfer.activate();
 	}
 
@@ -158,7 +168,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 		for (let [offset, beltTransfer] of pendingBeltTransfers) {
 			beltTransfers.push({
 				offset,
-				item_stacks: beltTransfer.itemStacks,
+				...beltTransfer,
 			});
 		}
 
@@ -184,16 +194,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 			return; // XXX later problem
 		}
 
-		let pendingBeltTransfers = edge.pendingCommand.beltTransfers;
-		for (let beltTransfer of belt_transfers) {
-			let pending = pendingBeltTransfers.get(beltTransfer.offset);
-			if (!pending) {
-				pending = { itemStacks: [] };
-				pendingBeltTransfers.set(beltTransfer.offset, pending);
-			}
-			pending.itemStacks.push(...beltTransfer.item_stacks);
-		}
-
+		mergeBeltTransfers(edge.pendingCommand.beltTransfers, belt_transfers)
 		edge.commandTransfer.activate();
 	}
 
@@ -211,7 +212,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 		for (let [offset, beltTransfer] of pendingBeltTransfers) {
 			beltTransfers.push({
 				offset,
-				item_stacks: beltTransfer.itemStacks,
+				...beltTransfer,
 			});
 		}
 

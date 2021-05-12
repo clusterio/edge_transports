@@ -96,13 +96,14 @@ module.exports = {
 					items: {
 						type: "object",
 						additionalProperties: false,
-						required: ["offset", "item_stacks"],
+						required: ["offset"],
 						properties: {
 							"offset": { type: "number" },
 							"item_stacks": {
 								type: "array",
 								items: { type: "object" },
 							},
+							"set_flow": { type: "boolean" },
 						},
 					},
 				},

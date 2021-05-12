@@ -179,6 +179,8 @@ local function spawn_belt_box(offset, edge, is_input, surface)
 		edge.linked_belts[offset] = {
 			chest = chest,
 			is_input = is_input,
+			start_index = nil,
+			flag_for_removal = nil,
 		}
 	end
 
@@ -275,8 +277,8 @@ local function on_removed(entity)
 	end
 end
 
-local function poll_belt_link(offset, link)
-	if not link.is_input or not link.chest or not link.chest.valid then
+local function poll_input_belt_link(offset, link)
+	if not link.chest or not link.chest.valid then
 		return
 	end
 
@@ -302,26 +304,88 @@ local function poll_belt_link(offset, link)
 	end
 end
 
-local function push_belt_link(link, item_stacks)
+local function poll_output_belt_link(offset, link)
+	if not link.chest or not link.chest.valid then
+		return
+	end
+
+	local inventory = link.chest.get_inventory(defines.inventory.chest)
+	if link.start_index and not inventory[link.start_index].valid_for_read then
+		link.start_index = nil
+		return {
+			offset = offset,
+			set_flow = true,
+		}
+	end
+end
+
+-- Shift the item in the inventory up by the given count of slots
+local function shift_inventory(inventory, shift)
+	if inventory.is_empty() then
+		return shift, shift
+	end
+
+	local _, current_index = inventory.find_empty_stack()
+	if not current_index then
+		return 0, #inventory
+	end
+
+	current_index = current_index - 1
+	local current_shift = 1
+	if current_shift < shift then
+		for index = current_index + current_shift, #inventory do
+			if inventory[index].valid_for_read then
+				break
+			end
+			current_shift = index - current_index
+			if current_shift >= shift then
+				break
+			end
+		end
+	end
+	local shift_top = current_index + shift
+
+	-- Shift up the item stacks
+	while current_index >= 1 do
+		inventory[current_index + current_shift].transfer_stack(inventory[current_index])
+		current_index = current_index - 1
+	end
+
+	return current_shift, shift_top
+end
+
+local function push_belt_link(offset, link, item_stacks)
 	if not link.chest or not link.chest.valid then
 		log("FATAL: recevied items but target chest does not exist at off " .. offset)
 		return
 	end
 
 	local inventory = link.chest.get_inventory(defines.inventory.chest)
-	for index=1, #inventory do
-		local slot = inventory[index]
-		if not slot.valid_for_read then
-			serialize.deserialize_item_stack(slot, item_stacks[#item_stacks])
-			item_stacks[#item_stacks] = nil
-			if #item_stacks == 0 then
-				break
-			end
-		end
+	local item_stacks_count = #item_stacks
+	local space, top_index = shift_inventory(inventory, item_stacks_count)
+	for index=1, space do
+		local slot = inventory[space - index + 1]
+		serialize.deserialize_item_stack(slot, item_stacks[index])
+		item_stacks[index] = nil
 	end
 
-	if #item_stacks ~= 0 then
+	if item_stacks_count > space then
+		for index=1, space - item_stacks_count do
+			item_stacks[index] = item_stacks[index + space]
+		end
+
+		link.start_index = math.floor(#inventory / 2 + 1)
 		log("FATAL: item stacks left over!")
+
+	elseif not link.start_index and top_index > item_stacks_count * 2 + 2 then
+		link.start_index = math.min(item_stacks_count + 2, #inventory)
+	end
+
+	if link.start_index then
+		return {
+			offset = offset,
+			set_flow = false,
+		}
 	end
 end
 
@@ -338,7 +402,13 @@ local function poll_links(id, edge, ticks_left)
 	for offset, link in itertools.partial_pairs(
 		edge.linked_belts, edge.linked_belts_state, ticks_left
 	) do
-		local update = poll_belt_link(offset, link)
+		local update
+		if link.is_input then
+			update = poll_input_belt_link(offset, link)
+		else
+			update = poll_output_belt_link(offset, link)
+		end
+
 		if update then
 			belt_transfers[#belt_transfers + 1] = update
 		end
@@ -367,6 +437,7 @@ function edge_transports.set_edges(json)
 				direction = edge.direction,
 				length = edge.length,
 				active = false,
+				linked_belts = nil,
 			}
 
 		else
@@ -407,6 +478,26 @@ function edge_transports.set_active_edges(json)
 
 	for edge_id, edge in pairs(global.edge_transports.edges) do
 		edge.active = active_edges_map[edge_id] == true
+
+		if not edge.active then
+			if edge.linked_belts then
+				for offset, link in pairs(edge.linked_belts) do
+					if link.is_input and link.chest and link.chest.valid then
+						local inventory = link.chest.get_inventory(defines.inventory.chest)
+						inventory.set_bar(1)
+					end
+				end
+			end
+
+		else
+			if edge.linked_belts then
+				for offset, link in pairs(edge.linked_belts) do
+					if not link.is_input then
+						link.start_index = 1
+					end
+				end
+			end
+		end
 	end
 
 	if global.edge_transports.debug_draw then
@@ -447,6 +538,8 @@ function edge_transports.transfer(json)
 		rcon.print("invalid edge")
 		return
 	end
+
+	local response_transfers = {}
 	if data.belt_transfers then
 		for _, belt_transfer in ipairs(data.belt_transfers) do
 			local link = (edge.linked_belts or {})[belt_transfer.offset]
@@ -455,8 +548,29 @@ function edge_transports.transfer(json)
 				return
 			end
 
-			push_belt_link(link, belt_transfer.item_stacks)
+			if link.is_input and belt_transfer.set_flow ~= nil then
+				local inventory = link.chest.get_inventory(defines.inventory.chest)
+				if belt_transfer.set_flow then
+					inventory.set_bar()
+				else
+					inventory.set_bar(1)
+				end
+			end
+
+			if belt_transfer.item_stacks then
+				local update = push_belt_link(belt_transfer.offset, link, belt_transfer.item_stacks)
+				if update then
+					response_transfers[#response_transfers + 1] = update
+				end
+			end
 		end
+	end
+
+	if #response_transfers > 0 then
+		clusterio_api.send_json("edge_transports:transfer", {
+			edge_id = data.edge_id,
+			belt_transfers = response_transfers,
+		})
 	end
 end
 
@@ -478,10 +592,6 @@ edge_logic.events = {
 			global.edge_transports.edges = {}
 		end
 
-		for _, edge in pairs(global.edge_transports.edges) do
-			edge.active = false
-		end
-
 		if not global.edge_transports.debug_shapes then
 			global.edge_transports.debug_shapes = {}
 		end
@@ -489,6 +599,8 @@ edge_logic.events = {
 		if not global.edge_transports.ticks_per_edge then
 			global.edge_transports.ticks_per_edge = 15
 		end
+
+		edge_transports.set_active_edges("[]")
 	end,
 
 	[defines.events.on_tick] = function(event)
