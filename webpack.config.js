@@ -22,10 +22,8 @@ module.exports = (env = {}) => merge(common(env), {
 				"./package.json": "./package.json",
 			},
 			shared: {
-				"@clusterio/lib/config": { import: false },
-				"@clusterio/lib/link": { import: false },
+				"@clusterio/lib": { import: false },
 				"@clusterio/web_ui": { import: false },
-				"ajv": { import: false },
 				"antd": { import: false },
 				"react": { import: false },
 				"react-dom": { import: false },
