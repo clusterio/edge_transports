@@ -4,6 +4,13 @@ Edge Transports
 Clusterio plugin implementing item and fluid transfer between servers by
 letting them pass "over the edge" from one server to another.
 
+Installation
+----------------------
+
+In the folder of each of your clusterio installs, run the following:
+
+    npm install @clusterio/plugin-edge_transports
+    npx clusteriomaster plugin add @clusterio/plugin-edge_transports
 
 Instance Configuration
 ----------------------
