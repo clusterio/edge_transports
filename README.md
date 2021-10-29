@@ -4,9 +4,18 @@ Edge Transports
 Clusterio plugin implementing item and fluid transfer between servers by
 letting them pass "over the edge" from one server to another.
 
+Installation
+----------------------
+
+In the folder of each of your clusterio installs, run the following:
+
+    npm install @clusterio/plugin-edge_transports
+    npx clusteriomaster plugin add @clusterio/plugin-edge_transports
 
 Instance Configuration
 ----------------------
+
+The edge debug view can be toggled with `/c edge_transports.toggle_debug()`
 
 ### edge_transports.internal
 
@@ -14,7 +23,9 @@ Holds the definitions for the edges on this instance and where they go
 to.  This is an internal data structure with no type checking or
 safeguards, modify with caution.
 
-Example value:
+Example configuration:
+
+Instance 1 (id 1684700589)
 ```json
 {
     "edges": [
@@ -24,12 +35,32 @@ Example value:
             "surface": 1,
             "direction": 2,
             "length": 20,
-            "target_instance": 324,
+            "target_instance": 843892199,
             "target_edge": 1
         }
     ]
 }
 ```
+
+Instance 2 (id 843892199)
+```json
+{
+    "edges": [
+        {
+            "id": 1,
+            "origin": [-10, 10],
+            "surface": 1,
+            "direction": 6,
+            "length": 20,
+            "target_instance": 1684700589,
+            "target_edge": 1
+        }
+    ]
+}
+```
+
+![Instance 1](https://i.imgur.com/mnpQmEL.png)
+![Instance 2](https://i.imgur.com/SbsNDsn.png)
 
 Edges are defined as originating from an `origin` point in the game
 world and going out in `direction` for `length` number of tiles, where
@@ -71,3 +102,15 @@ delayed and bunched together, increasing latency and decreasing
 operational overhead.  Note that this limit applies per edge.
 
 Defaults to one command every 34ms or a little under 30.
+
+Troubleshooting
+----------------------
+
+### Edges show as inactive in the debug view
+
+The first time instances are starting with a new edge configuration there 
+may be some state inconsistency causing edges to not activate. Try restarting 
+the master server. Check the instance logs - if the edge doesn't have a valid partner 
+an error should be shown, ex `Got update for unknown edge ...`
+
+Seeing `edge_transports: setActiveEdges [3,2]` in the slave logs means its working.
