@@ -58,7 +58,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 	onMasterConnectionEvent(event) {
 		if (event === "drop" || event === "close") {
 			this.sendRcon('/sc edge_transports.set_active_edges("[]")').catch(
-				err => this.logger(`Error deactivating edges:\n${err.stack}`)
+				err => this.logger.error(`Error deactivating edges:\n${err.stack}`)
 			);
 		}
 	}
