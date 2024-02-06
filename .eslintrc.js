@@ -1,5 +1,8 @@
 "use strict";
 module.exports = {
+	"plugins": [
+		"node",
+	],
 	"env": {
 		"node": true,
 		"commonjs": true,
@@ -195,6 +198,12 @@ module.exports = {
 		"no-shadow": ["error", { "allow": ["yargs"] }],
 		"no-spaced-func": "error",
 		"no-sync": "error",
+		"node/no-unpublished-bin": "error",
+		"node/no-unpublished-import": "error",
+		"node/no-unpublished-require": [
+			"error",
+			{ "allowModules": ["@clusterio/web_ui", "webpack", "webpack-merge", "webpack-dev-middleware"] },
+		],
 		"no-tabs": ["error", { "allowIndentationTabs": true }],
 		"no-template-curly-in-string": "error",
 		"no-ternary": "off",

@@ -16,9 +16,9 @@ local belt_type_to_loader_type = {
 }
 
 
-local function vec2_sadd(a, s)
-	return {a[1] + s, a[2] + s}
-end
+-- local function vec2_sadd(a, s)
+-- 	return {a[1] + s, a[2] + s}
+-- end
 
 local function vec2_add(a, b)
 	return {a[1] + b[1], a[2] + b[2]}
@@ -32,9 +32,9 @@ local function vec2_smul(a, s)
 	return {a[1] * s, a[2] * s}
 end
 
-local function vec2_mul(a, b)
-	return {a[1] * b[1], a[2] * b[2]}
-end
+-- local function vec2_mul(a, b)
+-- 	return {a[1] * b[1], a[2] * b[2]}
+-- end
 
 -- Rotate vector by entity direction, facing east means a clock wise rotation of 90 degrees.
 local function vec2_rot(a, dir)
@@ -474,7 +474,7 @@ function edge_transports.set_edges(json)
 		end
 	end
 
-	for id, edge in pairs(edges) do
+	for id, _ in pairs(edges) do
 		if not new_edge_ids[id] then
 			edges[id] = nil
 		end
@@ -497,7 +497,7 @@ function edge_transports.set_active_edges(json)
 
 		if not edge.active then
 			if edge.linked_belts then
-				for offset, link in pairs(edge.linked_belts) do
+				for _, link in pairs(edge.linked_belts) do
 					if link.is_input and link.chest and link.chest.valid then
 						local inventory = link.chest.get_inventory(defines.inventory.chest)
 						inventory.set_bar(1)
@@ -507,7 +507,7 @@ function edge_transports.set_active_edges(json)
 
 		else
 			if edge.linked_belts then
-				for offset, link in pairs(edge.linked_belts) do
+				for _, link in pairs(edge.linked_belts) do
 					if not link.is_input then
 						link.start_index = 1
 					end
@@ -598,7 +598,7 @@ end
 
 local edge_logic = {}
 edge_logic.events = {
-	[clusterio_api.events.on_server_startup] = function(event)
+	[clusterio_api.events.on_server_startup] = function(_event)
 		log("Edge Transports startup")
 		if not global.edge_transports then
 			global.edge_transports = {}
@@ -619,7 +619,7 @@ edge_logic.events = {
 		edge_transports.set_active_edges("[]")
 	end,
 
-	[defines.events.on_tick] = function(event)
+	[defines.events.on_tick] = function(_event)
 		local ticks_left = -game.tick % global.edge_transports.ticks_per_edge
 		local id = global.edge_transports.current_edge_id
 		if id == nil then
