@@ -1,15 +1,16 @@
 "use strict";
-const libPlugin = require("@clusterio/lib/plugin");
+const { BaseControllerPlugin } = require("@clusterio/controller");
+const messages = require("./messages");
 
 
-class MasterPlugin extends libPlugin.BaseMasterPlugin {
+class ControllerPlugin extends BaseControllerPlugin {
 	async init() {
 		this.previousActiveEdges = new Set();
 		this.activeEdges = new Set();
 		this.instanceEdgeMap = new Map();
 		this.instanceInternalUpdated = new Set();
 
-		for (let [instanceId, instance] of this.master.instances) {
+		for (let [instanceId, instance] of this.controller.instances) {
 			this.createInstanceEdges(instanceId, instance);
 		}
 	}
@@ -21,7 +22,7 @@ class MasterPlugin extends libPlugin.BaseMasterPlugin {
 		let internal = instance.config.get("edge_transports.internal");
 		for (let edgeConfig of internal["edges"]) {
 			let edge = {
-				slaveId: instance.config.get("instance.assigned_slave"),
+				hostId: instance.config.get("instance.assigned_host"),
 				instanceId,
 				edgeId: edgeConfig.id,
 				targetInstanceId: edgeConfig.target_instance,
@@ -45,14 +46,14 @@ class MasterPlugin extends libPlugin.BaseMasterPlugin {
 		return targetEdge;
 	}
 
-	onSlaveConnectionEvent(connection, event) {
+	onHostConnectionEvent(connection, event) {
 		if (event === "drop" || event === "close") {
 			for (let edge of this.activeEdges) {
-				let instance = this.master.instances.get(edge.instanceId);
-				if (edge.slaveId === connection.id) {
+				let instance = this.controller.instances.get(edge.instanceId);
+				if (edge.hostId === connection.id) {
 					this.activeEdges.delete(edge);
 					this.previousActiveEdges.delete(edge);
-				} else if ((this.getTargetEdge(edge) || { slaveId: null }).slaveId === connection.id) {
+				} else if ((this.getTargetEdge(edge) || { hostId: null }).hostId === connection.id) {
 					this.activeEdges.delete(edge);
 				}
 			}
@@ -62,8 +63,8 @@ class MasterPlugin extends libPlugin.BaseMasterPlugin {
 			});
 
 		} else if (event === "connect" || event === "resume") {
-			for (let [instanceId, instance] of this.master.instances) {
-				if (instance.config.get("instance.assigned_slave") === connection.id) {
+			for (let [instanceId, instance] of this.controller.instances) {
+				if (instance.config.get("instance.assigned_host") === connection.id) {
 					this.instanceInternalUpdated.delete(instanceId);
 					this.activateEdges(instanceId);
 				}
@@ -74,12 +75,12 @@ class MasterPlugin extends libPlugin.BaseMasterPlugin {
 		}
 	}
 
-	async onPrepareSlaveDisconnect(connection) {
+	async onPrepareHostDisconnect(connection) {
 		for (let edge of this.activeEdges) {
-			let instance = this.master.instances.get(edge.instanceId);
+			let instance = this.controller.instances.get(edge.instanceId);
 			if (
-				edge.slaveId === connection.id
-				|| (this.getTargetEdge(edge) || { slaveId: null }).slaveId === connection.id
+				edge.hostId === connection.id
+				|| (this.getTargetEdge(edge) || { hostId: null }).hostId === connection.id
 			) {
 				this.activeEdges.delete(edge);
 			}
@@ -124,11 +125,11 @@ class MasterPlugin extends libPlugin.BaseMasterPlugin {
 
 			await this.applyActiveEdges();
 
-		} else if (group.name === "instance" && field === "assigned_slave") {
+		} else if (group.name === "instance" && field === "assigned_host") {
 			let instanceEdges = this.instanceEdgeMap.get(instance.config.get("instance.id"));
-			let newSlaveId = group.get(field);
+			let newHostId = group.get(field);
 			for (let edge of instanceEdges.values()) {
-				edge.slaveId = newSlaveId;
+				edge.hostId = newHostId;
 				this.activeEdges.delete(edge);
 				let targetEdge = this.getTargetEdge(edge);
 				if (targetEdge) {
@@ -155,13 +156,13 @@ class MasterPlugin extends libPlugin.BaseMasterPlugin {
 				continue;
 			}
 
-			let targetInstance = this.master.instances.get(targetEdge.instanceId);
+			let targetInstance = this.controller.instances.get(targetEdge.instanceId);
 			if (targetInstance.status !== "running") {
 				continue;
 			}
 
-			let targetSlaveConnection = this.master.wsServer.slaveConnections.get(targetEdge.slaveId);
-			if (!targetSlaveConnection || !targetSlaveConnection.connector.connected) {
+			let targetHostConnection = this.controller.wsServer.hostConnections.get(targetEdge.hostId);
+			if (!targetHostConnection || !targetHostConnection.connector.connected) {
 				continue;
 			}
 
@@ -173,7 +174,7 @@ class MasterPlugin extends libPlugin.BaseMasterPlugin {
 
 	async activateEdgesAfterInternalUpdateEventHandler(message) {
 		let instanceId = message.data.instance_id;
-		let instance = this.master.instances.get(instanceId);
+		let instance = this.controller.instances.get(instanceId);
 
 		if (instance.status !== "running") {
 			this.logger.warn(`Ignoring activate edges from ${instanceId} with status ${instance.status}`);
@@ -218,9 +219,9 @@ class MasterPlugin extends libPlugin.BaseMasterPlugin {
 
 		let tasks = [];
 		for (let instanceId of changedInstances) {
-			let instance = this.master.instances.get(instanceId);
-			let slaveId = instance.config.get("instance.assigned_slave");
-			let slaveConnection = this.master.wsServer.slaveConnections.get(slaveId);
+			let instance = this.controller.instances.get(instanceId);
+			let hostId = instance.config.get("instance.assigned_host");
+			let hostConnection = this.controller.wsServer.hostConnections.get(hostId);
 
 			let activeInstanceEdges = [];
 			for (let [instanceEdgeId, instanceEdge] of this.instanceEdgeMap.get(instanceId)) {
@@ -229,10 +230,7 @@ class MasterPlugin extends libPlugin.BaseMasterPlugin {
 				}
 			}
 
-			let task = this.info.messages.setActiveEdges.send(slaveConnection, {
-				instance_id: instanceId,
-				active_edges: activeInstanceEdges,
-			});
+			let task = hostConnection.sendTo({ instanceId }, new messages.SetActiveEdges(activeInstanceEdges));
 			tasks.push(task);
 		}
 
@@ -244,5 +242,5 @@ class MasterPlugin extends libPlugin.BaseMasterPlugin {
 }
 
 module.exports = {
-	MasterPlugin,
+	ControllerPlugin,
 };

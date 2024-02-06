@@ -10,7 +10,7 @@ Installation
 In the folder of each of your clusterio installs, run the following:
 
     npm install @clusterio/plugin-edge_transports
-    npx clusteriomaster plugin add @clusterio/plugin-edge_transports
+    npx clusteriocontroller plugin add @clusterio/plugin-edge_transports
 
 Instance Configuration
 ----------------------
@@ -110,7 +110,7 @@ Troubleshooting
 
 The first time instances are starting with a new edge configuration there 
 may be some state inconsistency causing edges to not activate. Try restarting 
-the master server. Check the instance logs - if the edge doesn't have a valid partner 
+the controller server. Check the instance logs - if the edge doesn't have a valid partner 
 an error should be shown, ex `Got update for unknown edge ...`
 
-Seeing `edge_transports: setActiveEdges [3,2]` in the slave logs means its working.
+Seeing `edge_transports: setActiveEdges [3,2]` in the host logs means its working.
