@@ -47,6 +47,10 @@ class InstancePlugin extends BaseInstancePlugin {
 				`Error handling transfer:\n${err.stack}`
 			));
 		});
+
+		this.instance.handle(messages.SetActiveEdges, this.setActiveEdgesRequestHandler.bind(this));
+		this.instance.handle(messages.EdgeLinkUpdate, this.edgeLinkUpdateEventHandler.bind(this));
+		this.instance.handle(messages.EdgeTransfer, this.edgeTransferRequestHandler.bind(this));
 	}
 
 	async setActiveEdgesRequestHandler(message) {

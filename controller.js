@@ -13,6 +13,12 @@ class ControllerPlugin extends BaseControllerPlugin {
 		for (let [instanceId, instance] of this.controller.instances) {
 			this.createInstanceEdges(instanceId, instance);
 		}
+
+		this.controller.handle(
+			messages.ActivateEdgesAfterInternalUpdate,
+			this.activateEdgesAfterInternalUpdateEventHandler.bind(this)
+		);
+		this.controller.handle(messages.EnsureEdgesDeactivated, this.ensureEdgesDeactivatedRequestHandler.bind(this));
 	}
 
 	createInstanceEdges(instanceId, instance) {
