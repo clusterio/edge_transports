@@ -10,7 +10,7 @@ module.exports = {
 		static jsonSchema = {
 			type: "object",
 			properties: {
-				instance_id: { type: "string" },
+				instanceId: { type: "string" },
 			},
 		};
 		constructor(json) {
@@ -46,7 +46,7 @@ module.exports = {
 		static jsonSchema = {
 			type: "object",
 			properties: {
-				active_edges: {
+				activeEdges: {
 					type: "array",
 					items: { type: "integer" },
 				},

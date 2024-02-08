@@ -173,8 +173,8 @@ class ControllerPlugin extends BaseControllerPlugin {
 	}
 
 	async activateEdgesAfterInternalUpdateEventHandler(message) {
-		let instanceId = message.data.instance_id;
-		let instance = this.controller.instances.get(instanceId);
+		const { instanceId } = message;
+		const instance = this.controller.instances.get(instanceId);
 
 		if (instance.status !== "running") {
 			this.logger.warn(`Ignoring activate edges from ${instanceId} with status ${instance.status}`);
@@ -187,7 +187,7 @@ class ControllerPlugin extends BaseControllerPlugin {
 	}
 
 	async ensureEdgesDeactivatedRequestHandler(message) {
-		let instanceId = message.data.instance_id;
+		const { instanceId } = message;
 		for (let edge of this.activeEdges) {
 			if (edge.instanceId === instanceId || edge.tragetInstanceId === instanceId) {
 				this.logger.warn(
@@ -230,7 +230,9 @@ class ControllerPlugin extends BaseControllerPlugin {
 				}
 			}
 
-			let task = hostConnection.sendTo({ instanceId }, new messages.SetActiveEdges(activeInstanceEdges));
+			let task = hostConnection.sendTo({ instanceId }, new messages.SetActiveEdges(
+				activeInstanceEdges,
+			));
 			tasks.push(task);
 		}
 

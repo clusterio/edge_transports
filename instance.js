@@ -50,7 +50,7 @@ class InstancePlugin extends BaseInstancePlugin {
 	}
 
 	async setActiveEdgesRequestHandler(message) {
-		let json = lib.escapeString(JSON.stringify(message.data.active_edges));
+		let json = lib.escapeString(JSON.stringify(message.activeEdges));
 		this.logger.info(`setActiveEdges ${json}`);
 		await this.sendRcon(`/sc edge_transports.set_active_edges("${json}")`, true);
 	}
@@ -64,9 +64,9 @@ class InstancePlugin extends BaseInstancePlugin {
 	}
 
 	async handleEdgeLinkUpdate(update) {
-		let edge = this.edges.get(update.edge_id);
+		let edge = this.edges.get(update.edgeId);
 		if (!edge) {
-			this.logger.warn(`Got update for unknown edge ${update.edge_id}`);
+			this.logger.warn(`Got update for unknown edge ${update.edgeId}`);
 			return;
 		}
 
@@ -81,8 +81,8 @@ class InstancePlugin extends BaseInstancePlugin {
 	}
 
 	async edgeLinkUpdateEventHandler(message) {
-		let { type, edge_id, data } = message.data;
-		let json = lib.escapeString(JSON.stringify({ type, edge_id, data }));
+		let { type, edgeId, data } = message;
+		let json = lib.escapeString(JSON.stringify({ type, edge_id: edgeId, data }));
 		let result = await this.sendRcon(`/sc edge_transports.edge_link_update("${json}")`, true);
 	}
 
@@ -184,14 +184,14 @@ class InstancePlugin extends BaseInstancePlugin {
 	}
 
 	async edgeTransferRequestHandler(message) {
-		let { edge_id, belt_transfers } = message.data;
-		let edge = this.edges.get(edge_id);
+		let { edgeId, beltTransfers } = message;
+		let edge = this.edges.get(edgeId);
 		if (!edge) {
 			console.log("impossible the edge was not found!");
 			return; // XXX later problem
 		}
 
-		mergeBeltTransfers(edge.pendingCommand.beltTransfers, belt_transfers);
+		mergeBeltTransfers(edge.pendingCommand.beltTransfers, beltTransfers);
 		edge.commandTransfer.activate();
 	}
 
