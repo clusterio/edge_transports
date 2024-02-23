@@ -7,7 +7,7 @@
     "test": "spaces-to-tabs -s 4 module/**.lua && npm run lint && npm run luacheck",
     "lint": "eslint \"*.js\" --fix",
     "luacheck": "luacheck module/",
-    "build": "webpack --env production"
+    "prepare": "webpack --env production"
   },
   "repository": {
     "type": "git",
