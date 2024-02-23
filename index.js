@@ -1,5 +1,4 @@
 "use strict";
-const lib = require("@clusterio/lib");
 const messages = require("./messages");
 
 module.exports = {

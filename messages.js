@@ -98,11 +98,11 @@ module.exports = {
 						required: ["offset"],
 						properties: {
 							offset: { type: "number" },
-							itemStacks: {
+							item_stacks: {
 								type: "array",
 								items: { type: "object" },
 							},
-							setFlow: { type: "boolean" },
+							set_flow: { type: "boolean" },
 						},
 					},
 				},

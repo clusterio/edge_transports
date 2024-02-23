@@ -68,13 +68,13 @@ class InstancePlugin extends BaseInstancePlugin {
 	}
 
 	async handleEdgeLinkUpdate(update) {
-		let edge = this.edges.get(update.edgeId);
+		let edge = this.edges.get(update.edge_id);
 		if (!edge) {
-			this.logger.warn(`Got update for unknown edge ${update.edgeId}`);
+			this.logger.warn(`Got update for unknown edge ${update.edge_id}`);
 			return;
 		}
 
-		let result = await this.instance.sendTo(
+		await this.instance.sendTo(
 			{ instanceId: edge.config.target_instance },
 			new messages.EdgeLinkUpdate(
 				edge.config.target_edge,
@@ -87,7 +87,7 @@ class InstancePlugin extends BaseInstancePlugin {
 	async edgeLinkUpdateEventHandler(message) {
 		let { type, edgeId, data } = message;
 		let json = lib.escapeString(JSON.stringify({ type, edge_id: edgeId, data }));
-		let result = await this.sendRcon(`/sc edge_transports.edge_link_update("${json}")`, true);
+		await this.sendRcon(`/sc edge_transports.edge_link_update("${json}")`, true);
 	}
 
 	async updateInternal(internal, prev) {
@@ -221,7 +221,7 @@ class InstancePlugin extends BaseInstancePlugin {
 			edge_id: edgeId,
 			belt_transfers: beltTransfers,
 		}));
-		let result = await this.sendRcon(`/sc edge_transports.transfer("${json}")`, true);
+		await this.sendRcon(`/sc edge_transports.transfer("${json}")`, true);
 	}
 
 	async onStart() {
