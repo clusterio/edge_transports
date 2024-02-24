@@ -2,6 +2,7 @@ local clusterio_api = require("modules/clusterio/api")
 local serialize = require("modules/clusterio/serialize")
 
 local itertools = require("itertools")
+local vectorutil = require("vectorutil")
 
 local is_transport_belt = {
 	["transport-belt"] = true,
@@ -14,44 +15,6 @@ local belt_type_to_loader_type = {
 	["fast-transport-belt"] = "fast-loader",
 	["express-transport-belt"] = "express-loader",
 }
-
-
--- local function vec2_sadd(a, s)
--- 	return {a[1] + s, a[2] + s}
--- end
-
-local function vec2_add(a, b)
-	return {a[1] + b[1], a[2] + b[2]}
-end
-
-local function vec2_sub(a, b)
-	return {a[1] - b[1], a[2] - b[2]}
-end
-
-local function vec2_smul(a, s)
-	return {a[1] * s, a[2] * s}
-end
-
--- local function vec2_mul(a, b)
--- 	return {a[1] * b[1], a[2] * b[2]}
--- end
-
--- Rotate vector by entity direction, facing east means a clock wise rotation of 90 degrees.
-local function vec2_rot(a, dir)
-	if dir == 0 then return a end
-	if dir == 2 then return {-a[2], a[1]} end
-	if dir == 4 then return {-a[1], -a[2]} end
-	if dir == 6 then return {a[2], -a[1]} end
-	error("Invalid direction " .. serpent.line(dir))
-end
-
-local function dir_to_vec(dir)
-	if dir == 0 then return {1, 0} end
-	if dir == 2 then return {0, 1} end
-	if dir == 4 then return {-1, 0} end
-	if dir == 6 then return {0, -1} end
-	error("Invalid direction " .. serpent.line(dir))
-end
 
 local function debug_draw()
 	local debug_shapes = global.edge_transports.debug_shapes
@@ -77,27 +40,27 @@ local function debug_draw()
 		debug_shapes[#debug_shapes + 1] = rendering.draw_text {
 			color ={ r = 1, g = 1, b = 1 },
 			text = id .. " " .. (edge.active and "active" or "inactive"),
-			target = vec2_add(edge.origin, {0.4, -0.8}),
+			target = vectorutil.vec2_add(edge.origin, {0.4, -0.8}),
 			surface = edge.surface,
 		}
 
-		local dir = dir_to_vec(edge.direction)
+		local dir = vectorutil.dir_to_vec(edge.direction)
 		debug_shapes[#debug_shapes + 1] = rendering.draw_line {
 			color = { r = 1, g = 0.2, b = 0.2 },
 			width = 4,
-			from = vec2_add(edge.origin, vec2_smul(dir, 0.25)),
-			to = vec2_add(edge.origin, vec2_smul(dir, edge.length - 0.5)),
+			from = vectorutil.vec2_add(edge.origin, vectorutil.vec2_smul(dir, 0.25)),
+			to = vectorutil.vec2_add(edge.origin, vectorutil.vec2_smul(dir, edge.length - 0.5)),
 			surface = edge.surface,
 		}
 	end
 end
 
 local function world_to_edge_pos(pos, edge)
-	return vec2_rot(vec2_sub(pos, edge.origin), -edge.direction % 8)
+	return vectorutil.vec2_rot(vectorutil.vec2_sub(pos, edge.origin), -edge.direction % 8)
 end
 
 local function edge_pos_to_world(edge_pos, edge)
-	return vec2_add(vec2_rot(edge_pos, edge.direction), edge.origin)
+	return vectorutil.vec2_add(vectorutil.vec2_rot(edge_pos, edge.direction), edge.origin)
 end
 
 local function is_in_1x1_placement_area(edge_pos, edge)
@@ -474,7 +437,7 @@ function edge_transports.set_edges(json)
 		end
 	end
 
-	for id, _ in pairs(edges) do
+	for id, _edge in pairs(edges) do
 		if not new_edge_ids[id] then
 			edges[id] = nil
 		end
@@ -497,7 +460,7 @@ function edge_transports.set_active_edges(json)
 
 		if not edge.active then
 			if edge.linked_belts then
-				for _, link in pairs(edge.linked_belts) do
+				for _offset, link in pairs(edge.linked_belts) do
 					if link.is_input and link.chest and link.chest.valid then
 						local inventory = link.chest.get_inventory(defines.inventory.chest)
 						inventory.set_bar(1)
@@ -507,7 +470,7 @@ function edge_transports.set_active_edges(json)
 
 		else
 			if edge.linked_belts then
-				for _, link in pairs(edge.linked_belts) do
+				for _offset, link in pairs(edge.linked_belts) do
 					if not link.is_input then
 						link.start_index = 1
 					end
@@ -557,7 +520,7 @@ function edge_transports.transfer(json)
 
 	local response_transfers = {}
 	if data.belt_transfers then
-		for _, belt_transfer in ipairs(data.belt_transfers) do
+		for _offset, belt_transfer in ipairs(data.belt_transfers) do
 			local link = (edge.linked_belts or {})[belt_transfer.offset]
 			if not link then
 				log("FATAL: recevied items for non-existant link at offset " .. belt_transfer.offset)
