@@ -118,9 +118,9 @@ class ControllerPlugin extends BaseControllerPlugin {
 		await this.applyActiveEdges();
 	}
 
-	async onInstanceConfigFieldChanged(instance, group, field, prev) {
-		if (group.name === "edge_transports" && field === "internal") {
-			let instanceId = instance.config.get("instance.id");
+	async onInstanceConfigFieldChanged(instance, field, currentValue, previousValue) {
+		if (field === "edge_transports.internal") {
+			const instanceId = instance.config.get("instance.id");
 			this.instanceInternalUpdated.add(instanceId);
 			for (let edge of this.activeEdges) {
 				if (edge.instanceId === instanceId || edge.targetInstanceId === instanceId) {
@@ -131,9 +131,9 @@ class ControllerPlugin extends BaseControllerPlugin {
 
 			await this.applyActiveEdges();
 
-		} else if (group.name === "instance" && field === "assigned_host") {
-			let instanceEdges = this.instanceEdgeMap.get(instance.config.get("instance.id"));
-			let newHostId = group.get(field);
+		} else if (field === "edge_transports.assigned_host") {
+			const instanceEdges = this.instanceEdgeMap.get(instance.config.get("instance.id"));
+			const newHostId = currentValue;
 			for (let edge of instanceEdges.values()) {
 				edge.hostId = newHostId;
 				this.activeEdges.delete(edge);

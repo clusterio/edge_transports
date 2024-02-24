@@ -136,7 +136,7 @@ class InstancePlugin extends BaseInstancePlugin {
 		if (!util.isDeepStrictEqual(this.internal["edges"], prev["edges"])) {
 			let json = lib.escapeString(JSON.stringify(this.internal["edges"]));
 			await this.sendRcon(`/sc edge_transports.set_edges("${json}")`, true);
-			if (this.instance.status === "running" && this.slave.connector.connected) {
+			if (this.instance.status === "running" && this.host.connector.connected) {
 				this.instance.sendTo("controller", new messages.ActivateEdgesAfterInternalUpdate(this.instance.id));
 			}
 		}
@@ -229,25 +229,20 @@ class InstancePlugin extends BaseInstancePlugin {
 		await this.updateTicksPerEdge(this.instance.config.get("edge_transports.ticks_per_edge"));
 	}
 
-	async onInstanceConfigFieldChanged(group, field, prev) {
-		if (group.name !== "edge_transports") {
-			return;
-		}
+	async onInstanceConfigFieldChanged(field, currentValue, previousValue) {
+		if (field === "edge_transports.internal") {
+			await this.updateInternal(currentValue, previousValue);
 
-		let value = group.get(field);
-		if (field === "internal") {
-			await this.updateInternal(value, prev);
+		} else if (field === "edge_transports.ticks_per_edge") {
+			await this.updateTicksPerEdge(currentValue);
 
-		} else if (field === "ticks_per_edge") {
-			await this.updateTicksPerEdge(value);
-
-		} else if (field === "transfer_message_rate") {
+		} else if (field === "edge_transports.transfer_message_rate") {
 			for (let edge of this.edges.values()) {
-				edge.messageTransfer.maxRate = value;
+				edge.messageTransfer.maxRate = currentValue;
 			}
-		} else if (field === "transfer_command_rate") {
+		} else if (field === "edge_transports.transfer_command_rate") {
 			for (let edge of this.edges.values()) {
-				edge.commandTransfer.maxRate = value;
+				edge.commandTransfer.maxRate = currentValue;
 			}
 		}
 	}
