@@ -65,7 +65,7 @@ class ControllerPlugin extends BaseControllerPlugin {
 			}
 
 			this.applyActiveEdges().catch(err => {
-				this.logger(`Unexpected error:\n${err.stack}`);
+				this.logger.error(`Unexpected error:\n${err.stack}`);
 			});
 
 		} else if (event === "connect" || event === "resume") {
@@ -76,7 +76,7 @@ class ControllerPlugin extends BaseControllerPlugin {
 				}
 			}
 			this.applyActiveEdges().catch(err => {
-				this.logger(`Unexpected error:\n${err.stack}`);
+				this.logger.error(`Unexpected error:\n${err.stack}`);
 			});
 		}
 	}
