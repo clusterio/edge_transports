@@ -112,6 +112,7 @@ class ControllerPlugin extends BaseControllerPlugin {
 				this.instanceEdgeMap.delete(instanceId);
 			}
 		} else {
+			this.instanceInternalUpdated.delete(instanceId);
 			this.activateEdges(instanceId);
 		}
 
