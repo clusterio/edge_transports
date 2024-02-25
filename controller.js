@@ -182,7 +182,10 @@ class ControllerPlugin extends BaseControllerPlugin {
 	async activateEdgesAfterInternalUpdateEventHandler(message) {
 		const { instanceId } = message;
 		const instance = this.controller.instances.get(instanceId);
-
+		if (!instance) {
+			this.logger.warn(`Error - instance ${instanceId} does not exist`);
+			return;
+		}
 		if (instance.status !== "running") {
 			this.logger.warn(`Ignoring activate edges from ${instanceId} with status ${instance.status}`);
 			return;
@@ -236,11 +239,12 @@ class ControllerPlugin extends BaseControllerPlugin {
 					activeInstanceEdges.push(instanceEdgeId);
 				}
 			}
-
-			let task = hostConnection.sendTo({ instanceId }, new messages.SetActiveEdges(
-				activeInstanceEdges,
-			));
-			tasks.push(task);
+			if (instance.status === "running") {
+				let task = hostConnection.sendTo({ instanceId }, new messages.SetActiveEdges(
+					activeInstanceEdges,
+				));
+				tasks.push(task);
+			}
 		}
 
 		this.previousActiveEdges = new Set(this.activeEdges);
