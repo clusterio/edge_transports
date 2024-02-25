@@ -13,11 +13,11 @@ module.exports = {
 				instanceId: { type: "string" },
 			},
 		};
-		constructor(json) {
-			this.instanceId = json.instanceId;
+		constructor(instanceId) {
+			this.instanceId = instanceId;
 		}
 		static fromJSON(json) {
-			return new this(json);
+			return new this(json.instanceId);
 		}
 	},
 	EnsureEdgesDeactivated: class EnsureEdgesDeactivated {
