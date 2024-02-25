@@ -159,10 +159,6 @@ class ControllerPlugin extends BaseControllerPlugin {
 				continue;
 			}
 
-			if (this.instanceInternalUpdated.has(targetEdge.instanceId)) {
-				continue;
-			}
-
 			let targetInstance = this.controller.instances.get(targetEdge.instanceId);
 			if (targetInstance.status !== "running") {
 				continue;
@@ -176,7 +172,6 @@ class ControllerPlugin extends BaseControllerPlugin {
 			this.activeEdges.add(edge);
 			this.activeEdges.add(targetEdge);
 		}
-
 	}
 
 	async activateEdgesAfterInternalUpdateEventHandler(message) {
