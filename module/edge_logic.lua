@@ -28,8 +28,10 @@ local function debug_draw()
 	end
 
 	for id, edge in pairs(global.edge_transports.edges) do
+		-- Color debug line after edge status
+		local color = { r = not edge.active and 1 or 0.2, g = edge.active and 1 or 0.2, b = 0.2 }
 		debug_shapes[#debug_shapes + 1] = rendering.draw_circle {
-			color = { r = 1, g = 0.2, b = 0.2 },
+			color = color,
 			radius = 0.25,
 			width = 4,
 			filled = false,
@@ -46,7 +48,7 @@ local function debug_draw()
 
 		local dir = vectorutil.dir_to_vec(edge.direction)
 		debug_shapes[#debug_shapes + 1] = rendering.draw_line {
-			color = { r = 1, g = 0.2, b = 0.2 },
+			color = color,
 			width = 4,
 			from = vectorutil.vec2_add(edge.origin, vectorutil.vec2_smul(dir, 0.25)),
 			to = vectorutil.vec2_add(edge.origin, vectorutil.vec2_smul(dir, edge.length - 0.5)),
