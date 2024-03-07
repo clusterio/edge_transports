@@ -1,47 +1,47 @@
 {
-  "name": "@clusterio/plugin-edge_transports",
-  "version": "0.0.2",
-  "description": "Clusterio plugin implementing edge transports between servers",
-  "main": "index.js",
-  "scripts": {
-    "test": "spaces-to-tabs -s 4 module/**.lua && npm run lint && npm run luacheck",
-    "lint": "eslint \"*.js\" --fix",
-    "luacheck": "luacheck module/",
-    "prepare": "webpack --env production"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/clusterio/edge_transports.git"
-  },
-  "keywords": [
-    "clusterio",
-    "factorio"
-  ],
-  "author": "Hornwitser <github@hornwitser.no>",
-  "license": "BlueOak-1.0.0",
-  "bugs": {
-    "url": "https://github.com/clusterio/edge_transports/issues"
-  },
-  "homepage": "https://github.com/clusterio/edge_transports#readme",
-  "peerDependencies": {
-    "@clusterio/lib": "^2.0.0-alpha.0"
-  },
-  "devDependencies": {
-    "@babel/preset-react": "^7.12.5",
-    "@clusterio/web_ui": "^2.0.0-alpha.0",
+	"name": "@clusterio/plugin-edge_transports",
+	"version": "0.0.2",
+	"description": "Clusterio plugin implementing edge transports between servers",
+	"main": "index.js",
+	"scripts": {
+		"test": "spaces-to-tabs -s 4 module/**.lua && npm run lint && npm run luacheck",
+		"lint": "eslint \"*.js\" --fix",
+		"luacheck": "luacheck module/",
+		"prepare": "webpack --env production"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/clusterio/edge_transports.git"
+	},
+	"keywords": [
+		"clusterio",
+		"factorio"
+	],
+	"author": "Hornwitser <github@hornwitser.no>",
+	"license": "BlueOak-1.0.0",
+	"bugs": {
+		"url": "https://github.com/clusterio/edge_transports/issues"
+	},
+	"homepage": "https://github.com/clusterio/edge_transports#readme",
+	"peerDependencies": {
+		"@clusterio/lib": "^2.0.0-alpha.0"
+	},
+	"devDependencies": {
+		"@babel/preset-react": "^7.12.5",
+		"@clusterio/web_ui": "^2.0.0-alpha.0",
 		"@swc/core": "^1.4.0",
-    "babel-loader": "^8.2.0",
-    "eslint": "^8.4.1",
-    "eslint-plugin-node": "^11.1.0",
-    "spaces-to-tabs": "^0.0.3",
-    "webpack": "^5.88.2",
-    "webpack-cli": "^5.1.4",
-    "webpack-merge": "^5.9.0"
-  },
-  "dependencies": {
-    "null-loader": "^4.0.1"
-  },
-  "publishConfig": {
-    "access": "public"
-  }
+		"babel-loader": "^8.2.0",
+		"eslint": "^8.4.1",
+		"eslint-plugin-node": "^11.1.0",
+		"spaces-to-tabs": "^0.0.3",
+		"webpack": "^5.88.2",
+		"webpack-cli": "^5.1.4",
+		"webpack-merge": "^5.9.0"
+	},
+	"dependencies": {
+		"null-loader": "^4.0.1"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
 }
