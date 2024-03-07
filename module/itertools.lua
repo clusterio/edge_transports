@@ -8,18 +8,18 @@ function itertools.partial_pairs(tbl, state, ticks_left)
 		return next, tbl, index
 	end
 
-	function iterator(state, index)
-		if state.pos >= state.endpoint then
-			state.index = index
+	local function iterator(itstate, index)
+		if itstate.pos >= itstate.endpoint then
+			itstate.index = index
 			return nil, nil
 
-		elseif state.pos > 0 and index == nil then
+		elseif itstate.pos > 0 and index == nil then
 			return nil, nil
 		end
 
-		state.pos = state.pos + 1
-		state.index = next(tbl, index)
-		return state.index, tbl[state.index]
+		itstate.pos = itstate.pos + 1
+		itstate.index = next(tbl, index)
+		return itstate.index, tbl[itstate.index]
 	end
 
 	state.pos = state.pos or 0

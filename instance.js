@@ -1,9 +1,9 @@
 "use strict";
 const util = require("util");
 
-const libPlugin = require("@clusterio/lib/plugin");
-const libLuaTools = require("@clusterio/lib/lua_tools");
-const RateLimiter = require("@clusterio/lib/RateLimiter");
+const lib = require("@clusterio/lib");
+const { BaseInstancePlugin } = require("@clusterio/host");
+const messages = require("./messages");
 
 
 function mergeBeltTransfers(pendingBeltTransfers, beltTransfers) {
@@ -25,7 +25,7 @@ function mergeBeltTransfers(pendingBeltTransfers, beltTransfers) {
 	}
 }
 
-class InstancePlugin extends libPlugin.BaseInstancePlugin {
+class InstancePlugin extends BaseInstancePlugin {
 	async init() {
 		if (!this.instance.config.get("factorio.enable_save_patching")) {
 			throw new Error("edge_transports plugin requires save patching");
@@ -47,18 +47,22 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 				`Error handling transfer:\n${err.stack}`
 			));
 		});
+
+		this.instance.handle(messages.SetActiveEdges, this.setActiveEdgesRequestHandler.bind(this));
+		this.instance.handle(messages.EdgeLinkUpdate, this.edgeLinkUpdateEventHandler.bind(this));
+		this.instance.handle(messages.EdgeTransfer, this.edgeTransferRequestHandler.bind(this));
 	}
 
 	async setActiveEdgesRequestHandler(message) {
-		let json = libLuaTools.escapeString(JSON.stringify(message.data.active_edges));
+		let json = lib.escapeString(JSON.stringify(message.activeEdges));
 		this.logger.info(`setActiveEdges ${json}`);
 		await this.sendRcon(`/sc edge_transports.set_active_edges("${json}")`, true);
 	}
 
-	onMasterConnectionEvent(event) {
+	onControllerConnectionEvent(event) {
 		if (event === "drop" || event === "close") {
 			this.sendRcon('/sc edge_transports.set_active_edges("[]")').catch(
-				err => this.logger(`Error deactivating edges:\n${err.stack}`)
+				err => this.logger.error(`Error deactivating edges:\n${err.stack}`)
 			);
 		}
 	}
@@ -70,18 +74,20 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 			return;
 		}
 
-		let result = await this.info.messages.edgeLinkUpdate.send(this.instance, {
-			instance_id: edge.config.target_instance,
-			type: update.type,
-			edge_id: edge.config.target_edge,
-			data: update.data,
-		});
+		await this.instance.sendTo(
+			{ instanceId: edge.config.target_instance },
+			new messages.EdgeLinkUpdate(
+				edge.config.target_edge,
+				update.type,
+				update.data,
+			)
+		);
 	}
 
 	async edgeLinkUpdateEventHandler(message) {
-		let { type, edge_id, data } = message.data;
-		let json = libLuaTools.escapeString(JSON.stringify({ type, edge_id, data }));
-		let result = await this.sendRcon(`/sc edge_transports.edge_link_update("${json}")`, true);
+		let { type, edgeId, data } = message;
+		let json = lib.escapeString(JSON.stringify({ type, edge_id: edgeId, data }));
+		await this.sendRcon(`/sc edge_transports.edge_link_update("${json}")`, true);
 	}
 
 	async updateInternal(internal, prev) {
@@ -99,7 +105,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 					pendingMessage: {
 						beltTransfers: new Map(),
 					},
-					messageTransfer: new RateLimiter({
+					messageTransfer: new lib.RateLimiter({
 						maxRate: this.instance.config.get("edge_transports.transfer_message_rate"),
 						action: () => this.edgeTransferSendMessage(edgeConfig.id).catch(err => this.logger.error(
 							`Error sending transfer message:\n${err.stack}`
@@ -108,7 +114,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 					pendingCommand: {
 						beltTransfers: new Map(),
 					},
-					commandTransfer: new RateLimiter({
+					commandTransfer: new lib.RateLimiter({
 						maxRate: this.instance.config.get("edge_transports.transfer_command_rate"),
 						action: () => this.edgeTransferSendCommand(edgeConfig.id).catch(err => this.logger.error(
 							`Error sending transfer command:\n${err.stack}`
@@ -128,12 +134,10 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 		}
 
 		if (!util.isDeepStrictEqual(this.internal["edges"], prev["edges"])) {
-			let json = libLuaTools.escapeString(JSON.stringify(this.internal["edges"]));
+			let json = lib.escapeString(JSON.stringify(this.internal["edges"]));
 			await this.sendRcon(`/sc edge_transports.set_edges("${json}")`, true);
-			if (this.instance.status === "running" && this.slave.connector.connected) {
-				this.info.messages.activateEdgesAfterInternalUpdate.send(
-					this.instance, { instance_id: this.instance.id }
-				);
+			if (this.instance.status === "running" && this.host.connector.connected) {
+				this.instance.sendTo("controller", new messages.ActivateEdgesAfterInternalUpdate(this.instance.id));
 			}
 		}
 	}
@@ -145,7 +149,7 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 	async edgeTransferFromGame(data) {
 		let edge = this.edges.get(data.edge_id);
 		if (!edge) {
-			let json = libLuaTools.escapeString(JSON.stringify(data));
+			let json = lib.escapeString(JSON.stringify(data));
 			console.log("edge not found");
 			return; // XXX LATER PROBLEM
 		}
@@ -173,13 +177,10 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 		}
 
 		try {
-			await this.info.messages.edgeTransfer.send(this.instance, {
-				instance_id: edge.config.target_instance,
-				edge_id: edge.config.target_edge,
-				belt_transfers: beltTransfers,
-			});
-
-		// We assume the transfer did not happen if an error occured.
+			await this.instance.sendTo({ instanceId: edge.config.target_instance },
+				new messages.EdgeTransfer(edge.config.target_edge, beltTransfers)
+			);
+			// We assume the transfer did not happen if an error occured.
 		} catch (err) {
 			throw err;
 			// TODO return items
@@ -187,14 +188,14 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 	}
 
 	async edgeTransferRequestHandler(message) {
-		let { edge_id, belt_transfers } = message.data;
-		let edge = this.edges.get(edge_id);
+		let { edgeId, beltTransfers } = message;
+		let edge = this.edges.get(edgeId);
 		if (!edge) {
 			console.log("impossible the edge was not found!");
 			return; // XXX later problem
 		}
 
-		mergeBeltTransfers(edge.pendingCommand.beltTransfers, belt_transfers)
+		mergeBeltTransfers(edge.pendingCommand.beltTransfers, beltTransfers);
 		edge.commandTransfer.activate();
 	}
 
@@ -216,11 +217,11 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 			});
 		}
 
-		let json = libLuaTools.escapeString(JSON.stringify({
+		let json = lib.escapeString(JSON.stringify({
 			edge_id: edgeId,
 			belt_transfers: beltTransfers,
 		}));
-		let result = await this.sendRcon(`/sc edge_transports.transfer("${json}")`, true);
+		await this.sendRcon(`/sc edge_transports.transfer("${json}")`, true);
 	}
 
 	async onStart() {
@@ -228,32 +229,27 @@ class InstancePlugin extends libPlugin.BaseInstancePlugin {
 		await this.updateTicksPerEdge(this.instance.config.get("edge_transports.ticks_per_edge"));
 	}
 
-	async onInstanceConfigFieldChanged(group, field, prev) {
-		if (group.name !== "edge_transports") {
-			return;
-		}
+	async onInstanceConfigFieldChanged(field, currentValue, previousValue) {
+		if (field === "edge_transports.internal") {
+			await this.updateInternal(currentValue, previousValue);
 
-		let value = group.get(field);
-		if (field === "internal") {
-			await this.updateInternal(value, prev);
+		} else if (field === "edge_transports.ticks_per_edge") {
+			await this.updateTicksPerEdge(currentValue);
 
-		} else if (field === "ticks_per_edge") {
-			await this.updateTicksPerEdge(value);
-
-		} else if (field === "transfer_message_rate") {
+		} else if (field === "edge_transports.transfer_message_rate") {
 			for (let edge of this.edges.values()) {
-				edge.messageTransfer.maxRate = value;
+				edge.messageTransfer.maxRate = currentValue;
 			}
-		} else if (field === "transfer_command_rate") {
+		} else if (field === "edge_transports.transfer_command_rate") {
 			for (let edge of this.edges.values()) {
-				edge.commandTransfer.maxRate = value;
+				edge.commandTransfer.maxRate = currentValue;
 			}
 		}
 	}
 
 	async onStop() {
-		await this.info.messages.ensureEdgesDeactivated.send(this.instance, { instance_id: this.instance.id });
-		await this.sendRcon('/sc edge_transports.set_active_edges("[]")')
+		await this.instance.sendTo("controller", new messages.EnsureEdgesDeactivated(this.instance.id));
+		await this.sendRcon('/sc edge_transports.set_active_edges("[]")');
 
 		for (let edge of this.edges.values()) {
 			edge.messageTransfer.cancel();

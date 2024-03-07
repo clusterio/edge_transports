@@ -1,12 +1,15 @@
 "use strict";
 module.exports = {
+	"plugins": [
+		"node",
+	],
 	"env": {
 		"node": true,
 		"commonjs": true,
 		"es6": true,
 	},
 	"parserOptions": {
-		"ecmaVersion": 11,
+		"ecmaVersion": 2022,
 	},
 
 	"overrides": [
@@ -99,7 +102,7 @@ module.exports = {
 		"linebreak-style": ["error", "unix"],
 		"lines-around-comment": "off",
 		"lines-around-directive": "off",
-		"lines-between-class-members": ["error", "always"],
+		"lines-between-class-members": "off",
 		"max-classes-per-file": "off",
 		"max-depth": "warn",
 		"max-len": ["warn", { "code": 120 }],
@@ -195,6 +198,12 @@ module.exports = {
 		"no-shadow": ["error", { "allow": ["yargs"] }],
 		"no-spaced-func": "error",
 		"no-sync": "error",
+		"node/no-unpublished-bin": "error",
+		"node/no-unpublished-import": "error",
+		"node/no-unpublished-require": [
+			"error",
+			{ "allowModules": ["@clusterio/web_ui", "webpack", "webpack-merge", "webpack-dev-middleware"] },
+		],
 		"no-tabs": ["error", { "allowIndentationTabs": true }],
 		"no-template-curly-in-string": "error",
 		"no-ternary": "off",

@@ -9,24 +9,19 @@ module.exports = (env = {}) => merge(common(env), {
 	context: __dirname,
 	entry: "./web/index.jsx",
 	output: {
-		filename: "bundle.js",
 		path: path.resolve(__dirname, "dist", "web"),
 	},
 	plugins: [
 		new webpack.container.ModuleFederationPlugin({
 			name: "edge_transports",
 			library: { type: "var", name: "plugin_edge_transports" },
-			filename: "remoteEntry.js",
 			exposes: {
-				"./info": "./info.js",
+				"./": "./index.js",
 				"./package.json": "./package.json",
 			},
 			shared: {
 				"@clusterio/lib": { import: false },
 				"@clusterio/web_ui": { import: false },
-				"antd": { import: false },
-				"react": { import: false },
-				"react-dom": { import: false },
 			},
 		}),
 	],
