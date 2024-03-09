@@ -108,7 +108,7 @@ class InstancePlugin extends BaseInstancePlugin {
 					messageTransfer: new lib.RateLimiter({
 						maxRate: this.instance.config.get("edge_transports.transfer_message_rate"),
 						action: () => this.edgeTransferSendMessage(edgeConfig.id).catch(err => this.logger.error(
-							`Error sending transfer message:\n${err.stack}`
+							`Error sending transfer message:\n${err.stack ?? err.message}`
 						)),
 					}),
 					pendingCommand: {
@@ -117,7 +117,7 @@ class InstancePlugin extends BaseInstancePlugin {
 					commandTransfer: new lib.RateLimiter({
 						maxRate: this.instance.config.get("edge_transports.transfer_command_rate"),
 						action: () => this.edgeTransferSendCommand(edgeConfig.id).catch(err => this.logger.error(
-							`Error sending transfer command:\n${err.stack}`
+							`Error sending transfer command:\n${err.stack ?? err.message}`
 						)),
 					}),
 				};
