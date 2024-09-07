@@ -1,3 +1,7 @@
+# This repository is archived
+
+For current version of edge transports please go to https://github.com/clusterio/universal_edges
+
 # Edge Transports
 
 Clusterio plugin implementing item and fluid transfer between servers by letting them pass "over the edge" from one server to another.
