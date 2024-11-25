@@ -14,6 +14,8 @@ module.exports = {
 		instanceConfigFields: {
 			"edge_transports.internal": {
 				title: "Internal",
+				description: "Edge transports edge configuration",
+				inputComponent: "edge_transports_internal",
 				type: "object",
 				initialValue: { edges: [] },
 			},
@@ -40,5 +42,7 @@ module.exports = {
 		messages: [
 			...Object.keys(messages).map(key => messages[key]),
 		],
+
+		webEntrypoint: "./web",
 	},
 };
